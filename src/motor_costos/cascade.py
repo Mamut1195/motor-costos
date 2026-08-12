@@ -282,10 +282,10 @@ def _compute(contract: CostCascadeV1) -> CostCascadeResult:
                 )
             )
 
-    # Reconciliation invariant. The reference cannot satisfy this whenever a line
-    # carries the tool category, because `total_resources` sums six categories while
-    # only five are reported (cost_calculator.py:83-87). Reporting every declared
-    # category makes an unreported contributor structurally impossible; this asserts it.
+    # Reconciliation invariant. The reference cannot satisfy this whenever a line carries
+    # the tool category: its breakdown sums six categories and reports five, so a real
+    # cost silently has no line in the answer. Reporting every declared category makes an
+    # unreported contributor structurally impossible; this asserts it.
     if sum(by_category.values(), ZERO) + tool + safety != direct_cost:
         return _failed(
             (

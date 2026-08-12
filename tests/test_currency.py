@@ -16,12 +16,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 from conftest import cascade, codes, line
-
 from motor_costos import DiagnosticCode, compute_cascade
 
 
 def test_single_currency_composition_computes_and_reports_its_currency():
-    """Ported from test_currency_invariant.py:81-101: USD, price 10, qty 2, no factors."""
+    """Ported from the reference's currency-invariant suite: USD, price 10, qty 2, no
+    factors."""
     result = compute_cascade(
         cascade(
             [
@@ -48,14 +48,16 @@ def test_two_lines_sharing_a_currency_are_accepted():
 
 
 def test_empty_composition_has_no_currency():
-    """Ported from test_currency_invariant.py:46-51."""
+    """Ported from the reference's currency-invariant suite."""
     result = compute_cascade(cascade([]))
     assert result.success, result.diagnostics
     assert result.currency == ""
 
 
 def test_mixed_currencies_are_a_contract_error():
-    """Ported from test_currency_invariant.py:55-77."""
+    """Ported from the reference's currency-invariant suite, with the reporting shape
+    corrected: it named two of the currencies as `expected` and `found`, which asserts a
+    precedence that does not exist and hides a third."""
     result = compute_cascade(
         cascade(
             [

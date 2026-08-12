@@ -43,12 +43,22 @@ PRIVATE_PATTERNS = REPO / "_private" / "forbidden-patterns.txt"
 #: first version of the home-directory check silently ended up matching only forward
 #: slashes; normalising the text instead removes the whole class of mistake.
 STRUCTURAL = {
-    "windows user path": re.compile(r"[A-Za-z]:/Users/", re.I),
-    "cloud drive path": re.compile(r"\bOneDrive\b", re.I),
+    "windows user path": re.compile(r"[A-Za-z]:/Users/", re.IGNORECASE),
+    "cloud drive path": re.compile(r"\bOneDrive\b", re.IGNORECASE),
     "home directory of whoever runs this": re.compile(
-        rf"/{re.escape(Path.home().name)}/" if Path.home().name else r"(?!x)x", re.I
+        rf"/{re.escape(Path.home().name)}/" if Path.home().name else r"(?!x)x", re.IGNORECASE
     ),
 }
+
+
+#: A `module.py:12` citation. The shape is structural; which modules are *ours* is not
+#: something a literal can express, so this pairs with `local_module_names()` below.
+#:
+#: The lookbehind stops `..cascade.py:1` and `a-cascade.py:1` from being read as a
+#: citation of `cascade.py`, but deliberately lets a `/` through: an internal path like
+#: `pricing/cost_calculator.py:83` must be caught on its basename, not excused by its
+#: directory.
+CITATION = re.compile(r"(?<![\w.-])([\w-]+\.py):\d", re.IGNORECASE)
 
 
 def normalise(text: str) -> str:
@@ -111,6 +121,15 @@ def scannable() -> list[Path]:
     ]
 
 
+def local_module_names() -> set[str]:
+    """The modules this repository actually contains.
+
+    Derived from `published_files()` rather than listed by hand, so a new module is
+    citable the moment it is tracked and a deleted one stops being citable at once.
+    """
+    return {path.name.casefold() for path in published_files() if path.suffix.lower() == ".py"}
+
+
 def offences_for(pattern: re.Pattern[str]) -> list[str]:
     found = []
     for path in scannable():
@@ -154,6 +173,54 @@ def test_there_is_something_to_scan():
     assert "README.md" in names
     assert "src/motor_costos/cascade.py" in names
     assert "docs/PROVENANCE.md" in names
+
+
+def test_the_citation_pattern_tells_our_modules_from_theirs():
+    """The guard guarding the guard, for citations.
+
+    Both directions matter. A pattern that never fires forbids nothing; one that fires
+    on our own modules would push the next author to weaken it, which is the failure
+    this whole file exists to prevent.
+    """
+    local = local_module_names()
+    assert "cascade.py" in local, "discovery of local modules is broken"
+
+    def cited(text: str) -> set[str]:
+        return {m.group(1).casefold() for m in CITATION.finditer(normalise(text))}
+
+    assert cited("see cost_calculator.py:83-87") == {"cost_calculator.py"}
+    assert cited("ported from units.py:64-65") == {"units.py"}
+    assert cited(normalise("pricing" + chr(92) + "cost_calculator.py:83")) == {"cost_calculator.py"}
+    assert not cited("cost_calculator.py exploded"), "a bare filename is not a citation"
+    assert cited("cascade.py:83") <= local, "a local module must be citable"
+
+
+def test_no_published_file_cites_a_foreign_module():
+    """Module paths of the implementation this was translated from are not public.
+
+    The technical arguments that translation produced are all published; where they were
+    read is not. The precise citations live in `_private/REFERENCE-DEFECTS.md`, which
+    git never sees. Structural rather than identifying, so it belongs in this file: the
+    rule is "a `.py:12` citation must name a module of this repository", and stating it
+    publishes nothing.
+    """
+    local = local_module_names()
+    offences = []
+    for path in scannable():
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for number, text in enumerate(content.splitlines(), start=1):
+            for match in CITATION.finditer(normalise(text)):
+                if match.group(1).casefold() not in local:
+                    offences.append(
+                        f"{path.relative_to(REPO).as_posix()}:{number}: "
+                        f"cites {match.group(1)}: {text.strip()}"
+                    )
+    assert not offences, "foreign module citations found in published files:\n" + "\n".join(
+        offences
+    )
 
 
 @pytest.mark.parametrize("label", sorted(STRUCTURAL))

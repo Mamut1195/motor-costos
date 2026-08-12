@@ -67,7 +67,7 @@ def test_every_cross_pairing_is_incompatible():
 def test_lump_sum_and_time_can_never_be_satisfied():
     """TIME, CAPACITY and OTHER are deliberately absent from the map: an APU priced
     in hours, gallons or 'global' measures no physical dimension, so no quantity
-    satisfies it (units.py:64-65)."""
+    satisfies it. The exclusion is the reference's own, carried over deliberately."""
     for category in UNSATISFIABLE:
         for field in CORRESPONDENCE:
             result = check_dimension(dimension(field, category))
