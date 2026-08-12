@@ -10,8 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from conftest import cascade, dimension, line
+from pydantic import ValidationError
 
+from conftest import cascade, dimension, line
 from motor_costos import Diagnostic, DiagnosticCode, check_dimension, compute_cascade
 from motor_costos.diagnostics import MAX_MESSAGE_LENGTH, error, warning
 
@@ -162,12 +163,23 @@ def test_the_code_serialises_as_a_plain_integer():
 
 
 def test_a_diagnostic_is_frozen_and_closed():
+    """Both refusals are pydantic's, and naming the type is the point.
+
+    `pytest.raises(Exception)` would pass on a `TypeError` from a mistyped keyword, which
+    is a broken test rather than a frozen model. Frozen assignment and a forbidden extra
+    field both raise `ValidationError`, so that is what is asserted.
+    """
     diagnostic = error(DiagnosticCode.CURRENCY_MISMATCH, "s", "m.", "a.")
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         diagnostic.code = 1
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         Diagnostic(
-            severity="error", code=1, stage="s", message="m", suggested_action="a", path="/tmp"
+            severity="error",
+            code=1,
+            stage="s",
+            message="m",
+            suggested_action="a",
+            path="/tmp",  # noqa: S108 - a fixture string; this asserts the field cannot exist
         )
 
 

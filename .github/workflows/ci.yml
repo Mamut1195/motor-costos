@@ -16,7 +16,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install -e ".[test]"
+      - run: python -m pip install -e ".[test,lint]"
+      # Before the suite: linting is cheap and its feedback should not wait behind it.
+      - run: python -m ruff check --output-format github .
       - run: python -m pytest
       # The engine promises the same result on any platform. A single-OS matrix cannot
       # show that, so this runs on both — the one place a determinism claim is cheap to

@@ -42,8 +42,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from conftest import D, REFERENCE_CATEGORIES, by_category, by_stage, cascade, factors, line
-
+from conftest import REFERENCE_CATEGORIES, D, by_category, by_stage, cascade, factors, line
 from motor_costos import RoundingPolicy, compute_cascade
 
 ORACLE_FACTORS = factors(

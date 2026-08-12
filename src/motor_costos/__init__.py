@@ -33,6 +33,7 @@ from motor_costos.models import (
 from motor_costos.rounding import ENGINE_PRECISION, ROUNDING_MODES
 
 __all__ = [
+    "MAX_MONEY_INTEGER_DIGITS",
     "Capabilities",
     "CategoryCost",
     "CostCascadeResult",

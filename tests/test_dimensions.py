@@ -13,7 +13,6 @@ taxonomy it came from.
 from __future__ import annotations
 
 from conftest import dimension
-
 from motor_costos import DiagnosticCode, check_dimension
 from motor_costos.dimensions import (
     CATEGORY_BY_TOKEN,
@@ -143,6 +142,6 @@ def test_the_vocabulary_and_taxonomy_sizes_are_pinned():
 
 
 def test_the_inverse_map_is_derived_not_written_twice():
-    assert UNIT_CATEGORY_QUANTITY_FIELD == {
+    assert {
         category: field for field, category in QUANTITY_FIELD_UNIT_CATEGORY.items()
-    }
+    } == UNIT_CATEGORY_QUANTITY_FIELD

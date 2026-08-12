@@ -21,9 +21,9 @@ catalogue-identity concerns, and the engine does not know what a tenant is.
 from __future__ import annotations
 
 import pytest
-from conftest import REFERENCE_CATEGORIES, cascade, codes, factors, line
 from pydantic import ValidationError
 
+from conftest import REFERENCE_CATEGORIES, cascade, codes, factors, line
 from motor_costos import CostFactors, DiagnosticCode, ResourceLine, compute_cascade
 
 FACTOR_NAMES = (

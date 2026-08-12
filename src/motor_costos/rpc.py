@@ -37,7 +37,7 @@ INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32000
 
 
-class RpcFault(Exception):
+class RpcFault(Exception):  # noqa: N818 - "fault" is the JSON-RPC word; a suffix is not worth it
     def __init__(self, code: int, message: str) -> None:
         super().__init__(message)
         self.code = code

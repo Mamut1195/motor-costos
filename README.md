@@ -12,7 +12,8 @@ budget is. It receives data, calculates, and returns typed data.
 
 ```powershell
 python -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -e ".[test]"
+pip install -e ".[test,lint]"
+python -m ruff check .
 python -m pytest
 motor-costos-sidecar     # NDJSON JSON-RPC 2.0 on stdin/stdout
 motor-costos-schemas     # regenerate schemas/
@@ -158,6 +159,11 @@ source. A test that cannot fail for the reason it states is not a test.
 `tests/test_publication_hygiene.py` additionally scans every published file for internal
 references, so the separation between what is public and what is not is enforced on every run
 rather than being a one-time cleanup.
+
+CI gates on `ruff check` before the suite. The rule selection is argued in `pyproject.toml` rather
+than copied: `S` and `BLE` are there because the safety boundary above is a written claim, and the
+handful of suppressions each carry their reason inline. `RUF100` is what keeps that list honest —
+a `# noqa` that stops being necessary fails the build instead of becoming decoration.
 
 ## Provenance and decisions
 

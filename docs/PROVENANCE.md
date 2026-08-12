@@ -6,7 +6,9 @@
 |---|---|---|---|
 | pydantic | `>=2.12,<3` | MIT | Typed, frozen, closed contracts and results, and the JSON Schema the engine publishes. A caret range rather than an exact pin: the engine depends on v2 validation semantics, not on a patch-level behaviour. |
 
-Test dependencies: pytest (MIT), pytest-cov (MIT).
+Test dependencies: pytest (MIT), pytest-cov (MIT). Lint dependency: ruff (MIT), kept in its own
+`lint` extra and pinned to a minor — a ruff minor release adds rules, and a linter able to fail CI
+on unchanged source would undercut the determinism the two-OS matrix exists to defend.
 
 Standard library only for everything else. `decimal` carries all arithmetic; the engine imports
 no third-party numeric or unit library.

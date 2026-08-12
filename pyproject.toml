@@ -29,6 +29,12 @@ test = [
     "pytest>=9,<10",
     "pytest-cov>=7,<8",
 ]
+# Kept apart from `test` because linting is not testing, and pinned to a minor: a ruff
+# minor release adds rules, and a linter that can fail CI on unchanged source would
+# undercut the determinism the two-OS matrix exists to defend.
+lint = [
+    "ruff>=0.15,<0.16",
+]
 
 [project.scripts]
 motor-costos-sidecar = "motor_costos.rpc:main"
@@ -44,3 +50,45 @@ packages = ["src/motor_costos"]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
 markers = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# `S` and `BLE` earn their place here more than in an ordinary library: the README makes
+# a written safety claim -- the engine opens no file, no socket and no database, and no
+# third-party exception text crosses its boundary -- and these are the rules that keep it
+# honest. `RUF100` matters for the same reason one level up: a `# noqa` that stops being
+# necessary fails the build, so the suppressions below cannot quietly rot into decoration.
+#
+# Deliberately absent, each because it fights a decision this engine already made:
+#   PL      -- PLR2004 fires on every pinned oracle value. A known-answer suite is made
+#              of magic numbers; that is what makes it an oracle.
+#   TRY, EM -- push exception text into constants. Every caller-facing message here
+#              already goes through the static literals in `diagnostics.py`, and what is
+#              left is internal.
+#   D       -- the docstrings are prose arguments, not API summaries.
+#   ANN     -- the contract surface is typed where a contract needs to be.
+#   FBT     -- `success: bool` is a contract field, not a boolean trap.
+select = [
+    "A", "ARG", "B", "BLE", "C4", "C90", "E", "F", "FLY", "FURB", "I", "ISC", "N",
+    "PERF", "PGH", "PT", "RET", "RSE", "RUF", "S", "SIM", "T20", "TID", "UP", "W",
+]
+ignore = [
+    # Rewrites `Decimal("0")` to `Decimal(0)`. Amounts are written as strings throughout
+    # this engine -- `models.py` refuses a float outright -- and collapsing the literals
+    # to ints erases the convention the contract is built on.
+    "FURB157",
+    # Rewrites `{category: ZERO for category in ...}` to `dict.fromkeys`. The
+    # comprehension states the intent and sidesteps the shared-default footgun that makes
+    # `dict.fromkeys` a recurring source of bugs.
+    "C420",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Asserting is what a test does, and a test's inner loop is not a hot path.
+"tests/**" = ["S101", "PERF"]
+# A CLI generator whose printed filenames are its output.
+"src/motor_costos/schemas.py" = ["T201"]

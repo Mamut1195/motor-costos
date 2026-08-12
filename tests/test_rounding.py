@@ -12,7 +12,6 @@ import decimal
 from decimal import Decimal
 
 from conftest import by_stage, cascade, factors, line
-
 from motor_costos import RoundingPolicy, compute_cascade
 
 ORACLE_FACTORS = factors(

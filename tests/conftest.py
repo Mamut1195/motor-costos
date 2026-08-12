@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from motor_costos import (  # noqa: E402
+from motor_costos import (
     CostCascadeV1,
     CostFactors,
     DimensionCheckV1,
@@ -26,7 +26,7 @@ REFERENCE_CATEGORIES = ("MAT", "MO", "EQ", "TR", "HE", "SC")
 LABOUR = "MO"
 
 
-def D(value: str | int) -> Decimal:
+def D(value: str | int) -> Decimal:  # noqa: N802 - one letter on purpose; see the module docstring
     return Decimal(str(value))
 
 

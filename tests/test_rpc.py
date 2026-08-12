@@ -98,7 +98,7 @@ def test_a_float_amount_is_refused_at_the_transport_edge():
 
 def test_non_finite_constants_are_rejected_at_any_depth():
     for constant in ("NaN", "Infinity", "-Infinity"):
-        line = '{"jsonrpc":"2.0","id":1,"method":"cost.cascade.v1","params":{"x":%s}}' % constant
+        line = f'{{"jsonrpc":"2.0","id":1,"method":"cost.cascade.v1","params":{{"x":{constant}}}}}'
         assert json.loads(handle_line(line))["error"]["code"] == PARSE_ERROR
 
 
@@ -140,7 +140,8 @@ def test_errors_never_carry_a_path_a_traceback_or_a_caller_value():
     params["lines"][0]["unit_price"] = "-1"
     message = json.loads(call("cost.cascade.v1", params))["error"]["message"]
     assert "Traceback" not in message
-    assert "\\" not in message and "/Users" not in message
+    assert "\\" not in message
+    assert "/Users" not in message
     assert "-1" not in message
     assert "pydantic" not in message.lower()
 

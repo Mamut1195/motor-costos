@@ -76,7 +76,7 @@ def load_identifying_patterns() -> dict[str, re.Pattern[str]] | None:
     for raw in PRIVATE_PATTERNS.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if line and not line.startswith("#"):
-            patterns[line] = re.compile(line, re.I)
+            patterns[line] = re.compile(line, re.IGNORECASE)
     return patterns
 
 
@@ -89,7 +89,13 @@ def published_files() -> list[Path]:
     minus the directories that are ignored by construction.
     """
     result = subprocess.run(
-        ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=False
+        # An absolute git path would pin this test to one machine, which is the opposite
+        # of what it guards.
+        ["git", "ls-files", "-z"],  # noqa: S607
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if result.returncode == 0 and result.stdout.strip("\0"):
         return [REPO / name for name in result.stdout.split("\0") if name]
@@ -152,7 +158,7 @@ def test_the_structural_patterns_tell_paths_from_prose():
     a hand-escaped `[\\\\/]` class that quietly matched only forward slashes, so no Windows
     path was ever caught.
     """
-    home = re.compile(r"/runner/", re.I)
+    home = re.compile(r"/runner/", re.IGNORECASE)
     windows = STRUCTURAL["windows user path"]
     win_path = normalise("C:" + chr(92) + "Users" + chr(92) + "runner" + chr(92) + "Documents")
 
