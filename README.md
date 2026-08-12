@@ -31,6 +31,10 @@ contract registry, not restated, so a contract cannot ship undeclared.
 Neither `compute_cascade` nor `check_dimension` raises. Every refusal comes back as a typed
 result with diagnostics.
 
+The package ships a PEP 561 marker, so a consumer type-checks against these contracts rather than
+importing `Any`. Without it the frozen models, the `Literal[False]` that makes a partial result
+unrepresentable, and the annotation that refuses a `float` amount would all stop at the import.
+
 ## Cost cascade
 
 ```python

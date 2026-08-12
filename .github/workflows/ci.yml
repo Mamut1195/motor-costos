@@ -26,3 +26,11 @@ jobs:
       - run: python -m motor_costos.schemas
       - name: Schemas must be byte-identical after regeneration
         run: git diff --exit-code -- schemas/
+      # `tests/test_packaging.py` pins the claim; this pins the artifact. A file can sit
+      # in the repository and never reach the package a consumer installs, which is
+      # exactly how `Typing :: Typed` came to be declared without a usable marker. This
+      # is also the only step that builds the distribution at all.
+      - name: The built wheel must carry the PEP 561 marker
+        run: |
+          python -m pip wheel . -w dist --no-deps
+          python -c "import glob, sys, zipfile; names = zipfile.ZipFile(glob.glob('dist/*.whl')[0]).namelist(); sys.exit(0 if 'motor_costos/py.typed' in names else 'py.typed is missing from the built wheel: ' + str(names))"
