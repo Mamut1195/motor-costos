@@ -134,7 +134,9 @@ The sidecar method is `dimension.check.v1` with exactly `{"quantity_field": ...,
   through typed context fields, which are length-bounded.
 - Third-party exception text never crosses the boundary. A pydantic validation failure is
   reported as a count and the field paths, never its wording.
-- The JSON-RPC line limit is 1,000,000 bytes; a longer line is refused unread. `NaN` and
+- The JSON-RPC line limit is 1,000,000 bytes, and it bounds the sidecar's memory rather than only
+  its answers: the reader refuses an oversized line without ever assembling one, then
+  resynchronises to the next newline so the tail is not read as further requests. `NaN` and
   `Infinity` are rejected at any depth, by the parser and again by the models.
 - A boolean JSON-RPC id is refused, because in Python it would silently correlate with `1`.
 - A domain refusal is a `result` with diagnostics, not a JSON-RPC `error`. The call worked; the

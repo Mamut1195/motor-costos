@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterator
 from typing import Any
 
 from pydantic import ValidationError
@@ -22,8 +23,12 @@ from motor_costos.cascade import compute_cascade
 from motor_costos.contracts import CostCascadeV1, DimensionCheckV1
 from motor_costos.dimensions import check_dimension
 
-#: A request line longer than this is refused unread rather than buffered.
+#: A request line longer than this is refused without ever being buffered whole.
 MAX_RPC_LINE_BYTES = 1_000_000
+
+#: How much the reader takes from the stream at a time. Only the buffering granularity;
+#: `MAX_RPC_LINE_BYTES` is what actually bounds the memory.
+READ_CHUNK_BYTES = 65_536
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -133,8 +138,42 @@ def _error_response(request_id: Any, code: int, message: str) -> str:
     )
 
 
+def bounded_lines(stream: Any) -> Iterator[str | None]:
+    """Yield one request line at a time, never holding more than the limit.
+
+    `for line in stream` cannot do this. It assembles a whole line before anything can
+    judge its size, so `MAX_RPC_LINE_BYTES` would bound only the answers, not the memory
+    -- and a peer that never sends a newline decides how much of it to take.
+
+    An overrun yields `None` once, meaning "refuse this line". The remainder is then
+    discarded up to the next newline: a reader that dropped the buffer without
+    resynchronising would hand the tail of the oversized request to the parser as if it
+    were fresh traffic.
+    """
+    buffer = ""
+    discarding = False
+    while chunk := stream.read(READ_CHUNK_BYTES):
+        buffer += chunk
+        while "\n" in buffer:
+            line, _, buffer = buffer.partition("\n")
+            if discarding:
+                discarding = False  # that was the tail of the refused line
+            else:
+                yield line
+        if not discarding and len(buffer.encode("utf-8")) > MAX_RPC_LINE_BYTES:
+            buffer = ""
+            discarding = True
+            yield None
+    if buffer and not discarding:
+        yield buffer
+
+
 def main() -> int:
-    for line in sys.stdin:
+    for line in bounded_lines(sys.stdin):
+        if line is None:
+            sys.stdout.write(_error_response(None, INVALID_REQUEST, "Request too large") + "\n")
+            sys.stdout.flush()
+            continue
         line = line.strip()
         if not line:
             continue

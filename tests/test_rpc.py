@@ -126,7 +126,9 @@ def test_a_notification_gets_no_response():
     assert call("cost.cascade.v2", {}, request_id=None) is None
 
 
-def test_an_oversized_line_is_refused_unread():
+def test_an_oversized_line_is_refused():
+    """The check at the API boundary. `handle_line` receives a whole string by
+    construction; the reader that must never assemble one is tested separately below."""
     line = '{"jsonrpc":"2.0","id":1,"method":"x","params":"%s"}' % ("a" * MAX_RPC_LINE_BYTES)
     response = json.loads(handle_line(line))
     assert response["error"]["code"] == INVALID_REQUEST
@@ -239,6 +241,65 @@ def test_main_answers_one_line_per_request_and_skips_blanks(monkeypatch, capsys)
     assert len(lines) == 2, "the notification must produce no line"
     assert [json.loads(line)["id"] for line in lines] == [1, 2]
     assert json.loads(lines[1])["error"]["code"] == METHOD_NOT_FOUND
+
+
+class EndlessLine:
+    """A stream carrying one line that never ends.
+
+    A reader that assembles a whole line before judging its size cannot survive this:
+    it either never returns or grows without bound. The byte budget makes that failure
+    an assertion instead of a hung suite.
+    """
+
+    def __init__(self, budget: int) -> None:
+        self.served = 0
+        self.budget = budget
+
+    def read(self, size: int) -> str:
+        if self.served > self.budget:
+            raise AssertionError(
+                f"the reader consumed {self.served} bytes without refusing the line"
+            )
+        self.served += size
+        return "a" * size
+
+
+def test_the_reader_refuses_before_it_has_buffered_a_whole_line():
+    """`MAX_RPC_LINE_BYTES` bounds the sidecar's memory, not just its answers.
+
+    Iterating `sys.stdin` line by line checks the size only once the line is already in
+    memory, which is the one place the bound had to hold and did not.
+    """
+    stream = EndlessLine(budget=MAX_RPC_LINE_BYTES * 2)
+    assert next(rpc.bounded_lines(stream)) is None
+    assert stream.served > MAX_RPC_LINE_BYTES, "the refusal must follow a real overrun"
+
+
+def test_an_oversized_line_does_not_desynchronise_the_stream(monkeypatch, capsys):
+    """Refusing a request must not turn the rest of it into further requests.
+
+    A reader that drops an oversized line without resynchronising to the next newline
+    hands its tail to the parser as if it were fresh traffic.
+    """
+    oversized = '{"jsonrpc":"2.0","id":1,"method":"x","params":"%s"}' % ("a" * MAX_RPC_LINE_BYTES)
+    valid = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "engine.capabilities.v1"})
+    monkeypatch.setattr(sys, "stdin", io.StringIO(oversized + "\n" + valid + "\n"))
+
+    assert rpc.main() == 0
+    lines = [line for line in capsys.readouterr().out.splitlines() if line]
+    assert len(lines) == 2, "one refusal and one answer, not a refusal and a pile of junk"
+    assert json.loads(lines[0])["error"]["message"] == "Request too large"
+    assert json.loads(lines[1])["id"] == 2
+    assert json.loads(lines[1])["result"]["engine"] == "motor-costos"
+
+
+def test_a_final_line_without_a_trailing_newline_is_still_answered(monkeypatch, capsys):
+    """A parent process that closes the pipe after its last request still gets an answer."""
+    request = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "engine.capabilities.v1"})
+    monkeypatch.setattr(sys, "stdin", io.StringIO(request))
+    assert rpc.main() == 0
+    lines = [line for line in capsys.readouterr().out.splitlines() if line]
+    assert [json.loads(line)["id"] for line in lines] == [7]
 
 
 def test_an_unknown_method_without_params_is_still_method_not_found():
