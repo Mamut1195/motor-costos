@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "motor-costos"
+dynamic = ["version"]
+description = "Deterministic, stateless, framework-free cost engine: unit-price cascade over an APU composition, and dimensional compatibility between a quantity field and a unit of measure."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "MAMUT SYSTEMS" }]
+keywords = ["cost-estimation", "decimal", "deterministic", "dimensional-analysis", "unit-price"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.12,<3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=9,<10",
+    "pytest-cov>=7,<8",
+]
+
+[project.scripts]
+motor-costos-sidecar = "motor_costos.rpc:main"
+motor-costos-schemas = "motor_costos.schemas:main"
+
+[tool.hatch.version]
+path = "src/motor_costos/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/motor_costos"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+markers = []

@@ -1,0 +1,41 @@
+{
+  "additionalProperties": false,
+  "description": "Input for dimensional compatibility.\n\n`unit_category` is authoritative and required; the engine never infers it from the\nsymbol. `unit_symbol` is optional: when given it is folded and cross-checked against\nthe vocabulary, and a disagreement is reported rather than resolved.",
+  "properties": {
+    "contract_version": {
+      "const": "dimension-check.v1",
+      "default": "dimension-check.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "quantity_field": {
+      "maxLength": 100,
+      "title": "Quantity Field",
+      "type": "string"
+    },
+    "unit_category": {
+      "maxLength": 100,
+      "title": "Unit Category",
+      "type": "string"
+    },
+    "unit_symbol": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unit Symbol"
+    }
+  },
+  "required": [
+    "quantity_field",
+    "unit_category"
+  ],
+  "title": "DimensionCheckV1",
+  "type": "object"
+}

@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "CostFactors": {
+      "additionalProperties": false,
+      "description": "The six percentage factors of the cascade.\n\nAll six are required. Defaulting them is tempting and wrong: an engine that defaults\na tax rate to zero produces a plausible number nobody chose. What the caller did not\ndeclare is a contract error.",
+      "properties": {
+        "financing_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Financing Pct"
+        },
+        "indirect_cost_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Indirect Cost Pct"
+        },
+        "safety_equipment_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Safety Equipment Pct"
+        },
+        "tax_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Tax Pct"
+        },
+        "tool_wear_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Tool Wear Pct"
+        },
+        "utility_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Utility Pct"
+        }
+      },
+      "required": [
+        "tool_wear_pct",
+        "safety_equipment_pct",
+        "indirect_cost_pct",
+        "financing_pct",
+        "utility_pct",
+        "tax_pct"
+      ],
+      "title": "CostFactors",
+      "type": "object"
+    },
+    "ResourceLine": {
+      "additionalProperties": false,
+      "description": "One line of an APU composition.\n\n`partial_cost` is derived, never supplied: the engine owns the per-line stage\n(`quantity * unit_price * (1 + waste_pct / 100)`) because that is where the waste\nfactor is applied, and a caller that supplied it could apply it twice.",
+      "properties": {
+        "category": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "currency": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Currency",
+          "type": "string"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Quantity"
+        },
+        "resource_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "unit_price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Unit Price"
+        },
+        "waste_pct": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Decimal amount as a string or an integer; floats are rejected.",
+          "title": "Waste Pct"
+        }
+      },
+      "required": [
+        "resource_id",
+        "category",
+        "quantity",
+        "unit_price",
+        "waste_pct",
+        "currency"
+      ],
+      "title": "ResourceLine",
+      "type": "object"
+    },
+    "RoundingPolicy": {
+      "additionalProperties": false,
+      "description": "When and how the cascade rounds. See ADR 0001.\n\n`exact`     - never quantise; reproduces full-precision Decimal arithmetic.\n`final`     - exact intermediates, final unit cost quantised (the default).\n`per-stage` - quantise every stage before it feeds the next.",
+      "properties": {
+        "mode": {
+          "default": "final",
+          "enum": [
+            "exact",
+            "final",
+            "per-stage"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "money_scale": {
+          "default": 4,
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Money Scale",
+          "type": "integer"
+        }
+      },
+      "title": "RoundingPolicy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Input for the unit-price cascade over an APU composition.\n\nThe category taxonomy and the labour category are declared, never assumed: see\nADR 0003. The labour category is the base of the tool-wear and safety surcharges,\nwhich belong to direct cost, before the compounding cascade begins.",
+  "properties": {
+    "categories": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Categories",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "cost-cascade.v1",
+      "default": "cost-cascade.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "factors": {
+      "$ref": "#/$defs/CostFactors"
+    },
+    "labour_category": {
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Labour Category",
+      "type": "string"
+    },
+    "lines": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ResourceLine"
+      },
+      "title": "Lines",
+      "type": "array"
+    },
+    "rounding": {
+      "$ref": "#/$defs/RoundingPolicy",
+      "default": {
+        "mode": "final",
+        "money_scale": 4
+      }
+    }
+  },
+  "required": [
+    "categories",
+    "labour_category",
+    "factors"
+  ],
+  "title": "CostCascadeV1",
+  "type": "object"
+}

@@ -1,0 +1,7 @@
+# The schema freshness test compares bytes, not structures. Any line-ending translation
+# on checkout makes a checked-in schema differ from its own regeneration, which would
+# fail CI on a Windows runner (GitHub's windows-latest sets core.autocrlf=true) while
+# passing locally. Forcing LF everywhere makes the byte comparison mean what it says.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
