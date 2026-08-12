@@ -37,13 +37,23 @@ REPO = Path(__file__).resolve().parent.parent
 PRIVATE_PATTERNS = REPO / "_private" / "forbidden-patterns.txt"
 
 #: Shapes, not secrets. Safe to name in a published file.
+#:
+#: Matched against a copy of each line with backslashes turned into forward slashes, so
+#: the patterns never need to escape a path separator. Writing `[\\/]` by hand is how the
+#: first version of the home-directory check silently ended up matching only forward
+#: slashes; normalising the text instead removes the whole class of mistake.
 STRUCTURAL = {
-    "windows user path": re.compile(r"[A-Za-z]:\\\\?Users\\\\?", re.I),
+    "windows user path": re.compile(r"[A-Za-z]:/Users/", re.I),
     "cloud drive path": re.compile(r"\bOneDrive\b", re.I),
     "home directory of whoever runs this": re.compile(
-        re.escape(Path.home().name) if Path.home().name else r"(?!x)x", re.I
+        rf"/{re.escape(Path.home().name)}/" if Path.home().name else r"(?!x)x", re.I
     ),
 }
+
+
+def normalise(text: str) -> str:
+    """Backslashes to forward slashes, so one pattern covers both path flavours."""
+    return text.replace("\\", "/")
 
 #: This suite has to describe what it forbids, and .gitignore has to name what it excludes.
 ALLOWED = {"tests/test_publication_hygiene.py", ".gitignore"}
@@ -109,9 +119,31 @@ def offences_for(pattern: re.Pattern[str]) -> list[str]:
         except (UnicodeDecodeError, OSError):
             continue
         for number, text in enumerate(content.splitlines(), start=1):
-            if pattern.search(text):
+            if pattern.search(normalise(text)):
                 found.append(f"{path.relative_to(REPO).as_posix()}:{number}: {text.strip()}")
     return found
+
+
+def test_the_structural_patterns_tell_paths_from_prose():
+    """The guard guarding the guard.
+
+    A scanner that cannot fail for the reason it states is worth as much as a test that
+    cannot. Two mistakes are pinned here because both were actually made: a home-directory
+    name matched as a bare word (CI runs as `runner`, and "a Windows runner" is prose), and
+    a hand-escaped `[\\\\/]` class that quietly matched only forward slashes, so no Windows
+    path was ever caught.
+    """
+    home = re.compile(r"/runner/", re.I)
+    windows = STRUCTURAL["windows user path"]
+    win_path = normalise("C:" + chr(92) + "Users" + chr(92) + "runner" + chr(92) + "Documents")
+
+    assert home.search(normalise("/home/runner/work/repo")), "posix home path must match"
+    assert home.search(win_path), "windows home path must match once normalised"
+    assert not home.search(normalise("GitHub's windows-latest runner sets autocrlf")), (
+        "prose containing the home name must not match"
+    )
+    assert windows.search(win_path), "a windows user path must match once normalised"
+    assert not windows.search(normalise("see the Users guide")), "prose must not match"
 
 
 def test_there_is_something_to_scan():
