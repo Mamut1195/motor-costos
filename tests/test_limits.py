@@ -9,17 +9,23 @@ A limit exceeded fails the whole computation. Never a partial result that looks 
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
-from conftest import cascade, codes, factors, line
 from pydantic import ValidationError
 
-from motor_costos import DiagnosticCode, ResourceLine, compute_cascade
+from conftest import cascade, codes, factors, line
+from motor_costos import DiagnosticCode, ResourceLine, RoundingPolicy, compute_cascade
 from motor_costos import cascade as cascade_module
 from motor_costos.models import MAX_ID_LENGTH, MAX_MONEY_SCALE
+from motor_costos.rounding import ENGINE_PRECISION
 
 
 def lines(count: int):
-    return [line("MAT", quantity="1", unit_price="1", resource_id=f"r{index}") for index in range(count)]
+    return [
+        line("MAT", quantity="1", unit_price="1", resource_id=f"r{index}")
+        for index in range(count)
+    ]
 
 
 @pytest.mark.parametrize(("budget", "ok"), [(4, True), (3, False)])
@@ -55,11 +61,16 @@ def test_unit_price_above_the_magnitude_ceiling_is_rejected():
     assert result.stages == ()
 
 
-def test_a_stage_that_overflows_fails_the_whole_computation():
+def test_a_line_total_over_the_ceiling_names_the_line():
     """Both inputs are individually representable; their product is not.
 
     This is the failure the reference leaves open: it would hand the oversized Decimal
     to the database and raise there instead of rounding or refusing here.
+
+    The diagnostic names the offending line rather than a cascade stage, because the
+    line is where a caller can act. A ceiling enforced only downstream would still
+    refuse this composition, but it would point at `total_resources` and leave the
+    caller to find which of ten thousand lines produced it.
     """
     result = compute_cascade(cascade([line("MAT", quantity="1000000", unit_price="1000000")]))
     assert not result.success
@@ -67,6 +78,62 @@ def test_a_stage_that_overflows_fails_the_whole_computation():
     assert result.stages == ()
     assert result.categories == ()
     assert result.unit_cost is None
+
+    overflow = next(d for d in result.diagnostics if d.code == DiagnosticCode.LIMIT_MONEY_MAGNITUDE)
+    assert overflow.json_pointer == "/lines/0"
+    assert overflow.resource_id == "MAT-1000000-1000000-0"
+
+
+def test_every_offending_line_is_reported_not_just_the_first():
+    """Line-level refusals batch, exactly as undeclared categories and duplicates do."""
+    offenders = [
+        line("MAT", quantity="1000000", unit_price="1000000", resource_id=f"r{index}")
+        for index in range(3)
+    ]
+    result = compute_cascade(cascade([*offenders, line("MAT", quantity="1", unit_price="1")]))
+    assert not result.success
+    pointers = [d.json_pointer for d in result.diagnostics]
+    assert pointers == ["/lines/0", "/lines/1", "/lines/2"]
+
+
+@pytest.mark.parametrize("quantity", ["1e30", "1e60"])
+@pytest.mark.parametrize("mode", ["exact", "final", "per-stage"])
+@pytest.mark.parametrize("money_scale", [0, MAX_MONEY_SCALE])
+def test_the_engine_never_raises_on_an_unbounded_quantity(quantity, mode, money_scale):
+    """The promise, exercised where it used to break.
+
+    `quantity` carries no upper bound of its own, so a composition can ask for a number
+    that no `money_scale` can quantise. Quantising it raised `decimal.InvalidOperation`
+    out of a function documented never to raise -- and over the sidecar that became an
+    `Internal error` where a typed refusal belongs.
+    """
+    result = compute_cascade(
+        cascade(
+            [line("MAT", quantity=quantity, unit_price="1")],
+            rounding=RoundingPolicy(mode=mode, money_scale=money_scale),
+        )
+    )
+    assert not result.success
+    assert DiagnosticCode.LIMIT_MONEY_MAGNITUDE in codes(result)
+    assert result.unit_cost is None
+
+
+def test_the_line_ceiling_leaves_headroom_for_every_stage():
+    """The bound argument, executable rather than asserted in a comment.
+
+    Bounding each line total is what makes every later stage quantisable. The worst
+    case: `MAX_RESOURCE_LINES` lines at the ceiling, tool and safety each at most the
+    labour total, then four percentages of at most 100% compounding on top -- so at
+    most 3 * 16 = 48 times the resource total. That figure, plus the largest scale a
+    caller may request, must still fit inside `ENGINE_PRECISION`.
+
+    Raising `MAX_RESOURCE_LINES`, `MAX_MONEY_INTEGER_DIGITS` or `MAX_MONEY_SCALE`
+    without redoing this arithmetic fails here instead of raising in production.
+    """
+    ceiling = Decimal(10) ** cascade_module.MAX_MONEY_INTEGER_DIGITS
+    worst_unit_cost = ceiling * cascade_module.MAX_RESOURCE_LINES * 48
+    integer_digits = len(worst_unit_cost.to_integral_value().as_tuple().digits)
+    assert integer_digits + MAX_MONEY_SCALE <= ENGINE_PRECISION
 
 
 def test_a_stage_overflow_names_the_stage():

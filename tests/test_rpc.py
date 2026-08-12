@@ -164,6 +164,21 @@ def test_a_domain_refusal_is_a_result_not_a_fault():
     assert response["result"]["unit_cost"] is None
 
 
+def test_an_unbounded_quantity_is_a_result_not_an_internal_error():
+    """A quantity no scale can quantise is a composition problem, not a transport one.
+
+    It used to raise out of the engine and arrive here as `Internal error`, which tells
+    a caller the sidecar is broken when in fact their number is.
+    """
+    params = json.loads(json.dumps(CASCADE_PARAMS))
+    params["lines"][0]["quantity"] = "1e30"
+    response = json.loads(call("cost.cascade.v1", params))
+    assert "error" not in response
+    assert response["result"]["success"] is False
+    assert [d["code"] for d in response["result"]["diagnostics"]] == [3003]
+    assert response["result"]["unit_cost"] is None
+
+
 def test_the_response_is_byte_stable():
     first = call("cost.cascade.v1", CASCADE_PARAMS)
     second = call("cost.cascade.v1", CASCADE_PARAMS)

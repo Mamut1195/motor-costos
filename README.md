@@ -63,6 +63,12 @@ diagnostics per result. A nesting depth of 1: an APU cannot contain another APU,
 declares that rather than half-supporting it. Exceeding any limit fails the whole computation —
 `truncated` is typed `Literal[False]`, so a partial result is not representable.
 
+The monetary magnitude bounds each unit price, **each line total**, and each cascade stage. The
+middle one carries the weight: `quantity` has no ceiling of its own, so bounding the line total is
+what keeps every later stage quantisable — 10,000 lines below the ceiling, times the most the
+cascade can compound, still fits inside the engine's 28 digits. A line over it names the line, not
+a downstream stage, because the line is where a caller can act.
+
 The sidecar method is `cost.cascade.v1` with exactly the fields of `CostCascadeV1`.
 
 ## Rounding
@@ -142,7 +148,7 @@ arithmetic runs at a pinned precision inside an isolated decimal context.
 
 ## Testing
 
-Beyond the known-answer oracles, the suite applies **17 mutants to the bytes** of `cascade.py`
+Beyond the known-answer oracles, the suite applies **18 mutants to the bytes** of `cascade.py`
 and `rounding.py`, each of which must be killed by a **named** test — plus a control proving the
 harness passes unmutated, and a guard that fails loudly if a mutation anchor stops matching the
 source. A test that cannot fail for the reason it states is not a test.

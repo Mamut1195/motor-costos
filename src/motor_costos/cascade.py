@@ -196,11 +196,44 @@ def _compute(contract: CostCascadeV1) -> CostCascadeResult:
 
     # Stage 0, per line. In `per-stage` mode the line total is quantised here, so the
     # per-category figures and their sum stay exactly reconcilable.
+    #
+    # The ceiling is checked between the arithmetic and the quantisation, and that order
+    # is the whole point. `quantity` carries no upper bound of its own -- an APU asking
+    # for 1e30 of something is a composition error, not a representable number -- so
+    # without this check `rounder.stage` reaches `Decimal.quantize` with a value needing
+    # more than ENGINE_PRECISION digits and raises `InvalidOperation` out of a function
+    # documented never to raise.
+    #
+    # Bounding the line total is also what keeps every later stage quantisable, and the
+    # headroom is not incidental. At most MAX_RESOURCE_LINES lines, each under the money
+    # ceiling, bound the resource total; tool and safety are each at most the labour
+    # total, so direct cost is at most three times it; four percentages of at most 100%
+    # then compound, multiplying by at most sixteen. Forty-eight times the resource
+    # total, plus the largest money_scale a caller may request, still fits inside
+    # ENGINE_PRECISION. `test_the_line_ceiling_leaves_headroom_for_every_stage` asserts
+    # that arithmetic, so raising any of those limits fails the suite, not production.
+    overflows: list[Diagnostic] = []
     by_category: dict[str, Decimal] = {category: ZERO for category in contract.categories}
-    for line in contract.lines:
+    for index, line in enumerate(contract.lines):
         waste_factor = ONE + line.waste_pct / HUNDRED
-        partial = rounder.stage(line.quantity * line.unit_price * waste_factor)
-        by_category[line.category] += partial
+        partial = line.quantity * line.unit_price * waste_factor
+        if _over_ceiling(partial):
+            overflows.append(
+                error(
+                    DiagnosticCode.LIMIT_MONEY_MAGNITUDE,
+                    _STAGE,
+                    "A line total exceeds the representable monetary magnitude.",
+                    "Check the quantity, the price, or the currency they are expressed in.",
+                    json_pointer=f"/lines/{index}",
+                    resource_id=line.resource_id,
+                    limit_integer_digits=MAX_MONEY_INTEGER_DIGITS,
+                )
+            )
+            continue
+        by_category[line.category] += rounder.stage(partial)
+
+    if overflows:
+        return _failed(tuple(overflows))
 
     total_resources = rounder.stage(sum(by_category.values(), ZERO))
     labour = by_category[contract.labour_category]

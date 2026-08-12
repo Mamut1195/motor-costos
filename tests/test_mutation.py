@@ -25,6 +25,7 @@ from types import ModuleType
 import pytest
 
 import test_cascade
+import test_limits
 import test_rounding
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "motor_costos"
@@ -76,16 +77,16 @@ MUTANTS = [
     (
         "PARTIAL_COST_DROP_WASTE",
         "cascade",
-        "partial = rounder.stage(line.quantity * line.unit_price * waste_factor)",
-        "partial = rounder.stage(line.quantity * line.unit_price)",
+        "partial = line.quantity * line.unit_price * waste_factor",
+        "partial = line.quantity * line.unit_price",
         test_cascade,
         "test_partial_cost_applies_the_waste_factor",
     ),
     (
         "PARTIAL_COST_MULTIPLY_WASTE",
         "cascade",
-        "partial = rounder.stage(line.quantity * line.unit_price * waste_factor)",
-        "partial = rounder.stage(line.quantity * line.unit_price * (line.waste_pct / HUNDRED))",
+        "partial = line.quantity * line.unit_price * waste_factor",
+        "partial = line.quantity * line.unit_price * (line.waste_pct / HUNDRED)",
         test_cascade,
         "test_partial_cost_applies_the_waste_factor",
     ),
@@ -172,10 +173,25 @@ MUTANTS = [
     (
         "TOOL_CATEGORY_DROPPED_FROM_BREAKDOWN",
         "cascade",
-        "by_category[line.category] += partial",
-        "by_category[line.category] += partial if line.category != 'HE' else ZERO",
+        "by_category[line.category] += rounder.stage(partial)",
+        "by_category[line.category] += rounder.stage(partial) if line.category != 'HE' else ZERO",
         test_cascade,
         "test_every_declared_category_is_reported_including_the_tool_category",
+    ),
+    (
+        # The replacement must produce a wrong answer, not a crash: `pytest.raises(
+        # AssertionError)` below is what proves a named test noticed, and an
+        # InvalidOperation escaping instead would mean nothing was checked. So the
+        # killing test uses a line total that clears the money ceiling but stays well
+        # inside ENGINE_PRECISION. Without the guard the downstream stage check still
+        # refuses the composition -- but it names a cascade stage instead of the line,
+        # and the assertion on `json_pointer` fails.
+        "LINE_CEILING_NOT_ENFORCED",
+        "cascade",
+        "if _over_ceiling(partial):",
+        "if False:",
+        test_limits,
+        "test_a_line_total_over_the_ceiling_names_the_line",
     ),
     (
         "ROUNDING_IS_BANKERS_NOT_HALF_UP",
@@ -250,5 +266,5 @@ def test_every_anchor_occurs_exactly_once_in_the_real_source():
 
 def test_the_mutant_count_is_pinned():
     """The README states this number; nothing else would stop it drifting."""
-    assert len(MUTANTS) == 17
-    assert len({m[0] for m in MUTANTS}) == 17, "mutant names must be unique"
+    assert len(MUTANTS) == 18
+    assert len({m[0] for m in MUTANTS}) == 18, "mutant names must be unique"
