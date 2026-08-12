@@ -85,7 +85,7 @@ def test_mixed_currency_result_is_atomic_never_partial():
 
 
 def test_all_conflicting_currencies_are_reported_not_just_two():
-    """D9: the reference reports the two alphabetically lowest and calls one 'expected'."""
+    """Sorting the currencies and naming the first two hides every one after them."""
     result = compute_cascade(
         cascade(
             [

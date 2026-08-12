@@ -90,8 +90,8 @@ def test_an_unknown_unit_category_is_a_contract_error():
 
 
 def test_an_undeclared_unit_category_is_a_contract_error():
-    """`UnitOfMeasure.category` has no default in the reference, so '' is reachable
-    (D5). The engine refuses to guess what an empty category meant."""
+    """An empty category is reachable wherever the column carries no default.
+    The engine refuses to guess what an undeclared category was meant to be."""
     result = check_dimension(dimension("length", ""))
     assert not result.success
     assert DiagnosticCode.UNKNOWN_UNIT_CATEGORY in [d.code for d in result.diagnostics]
@@ -113,16 +113,20 @@ def test_symbol_folding_matches_the_reference():
 
 
 def test_a_symbol_contradicting_its_declared_category_warns():
-    """D3: the seed creates `glb` as category `unit`, while the inference vocabulary
-    maps it to `other`. Since count -> unit, that lets a count quantity satisfy a
-    lump-sum price today. The engine does not infer, but it does report the conflict."""
+    """Two sources of truth for one symbol's dimension will disagree eventually.
+
+    A lump-sum symbol classified as a countable one is the dangerous direction: since
+    `count` maps to `unit`, it lets a count quantity satisfy a price that measures
+    nothing. The engine does not infer, but it does report the conflict."""
     result = check_dimension(dimension("count", "unit", unit_symbol="glb"))
     assert result.success, result.diagnostics
     assert DiagnosticCode.SYMBOL_CATEGORY_CONFLICT in [d.code for d in result.diagnostics]
 
 
 def test_a_symbol_outside_the_vocabulary_warns_rather_than_guessing():
-    """D4: seven of the 32 seeded symbols are unknown to the inference vocabulary."""
+    """A vocabulary is never complete, and an unknown symbol is not dimensionless.
+
+    These seven are real units of sale that no general vocabulary would carry."""
     for symbol in ("pie", "pie2", "pie3", "yd3", "sem", "jgo", "funda"):
         result = check_dimension(dimension("length", "length", unit_symbol=symbol))
         assert result.success, result.diagnostics
