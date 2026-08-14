@@ -174,3 +174,11 @@ a `# noqa` that stops being necessary fails the build instead of becoming decora
 Domain knowledge was translated, not copied, from a prior in-house implementation. See
 [`docs/PROVENANCE.md`](docs/PROVENANCE.md) and [`docs/adr/`](docs/adr/) — three decisions:
 the rounding policy, the choice against a units library, and the parametrised taxonomy.
+
+## License
+
+Apache License 2.0 — see [`LICENSE`](LICENSE). Copyright 2026 MAMUT.
+
+Domain knowledge was translated, never copied, from private MAMUT
+applications; those repositories are not covered by this license and nothing
+was committed back to them. See `docs/PROVENANCE.md`.
