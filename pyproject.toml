@@ -51,6 +51,19 @@ addopts = "-ra --strict-markers"
 testpaths = ["tests"]
 markers = []
 
+# `pytest-cov` was a declared dependency that nothing invoked: no `--cov`, no
+# threshold, and CI ran plain `pytest`. A coverage number nobody can fail is a
+# claim, not a gate, so the floor is set below the measured 99% -- close enough
+# to catch a real regression, loose enough not to fail on a refactor that moves
+# a few lines around.
+[tool.coverage.run]
+source = ["motor_costos"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"
