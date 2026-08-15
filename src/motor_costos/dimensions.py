@@ -84,13 +84,13 @@ CATEGORY_BY_TOKEN: dict[str, str] = {
     "lb": "weight", "qq": "weight",
     # capacity
     "l": "capacity", "lt": "capacity", "lts": "capacity", "gl": "capacity",
-    "gal": "capacity", "m3l": "capacity",
+    "gal": "capacity", "gln": "capacity", "galon": "capacity", "m3l": "capacity",
     # time
     "h": "time", "hr": "time", "hra": "time", "hora": "time", "horas": "time",
     "dia": "time", "día": "time", "dias": "time", "jornal": "time", "mes": "time",
     "semana": "time", "min": "time",
     # unit
-    "u": "unit", "un": "unit", "und": "unit", "uds": "unit", "unidad": "unit",
+    "u": "unit", "un": "unit", "ud": "unit", "und": "unit", "uds": "unit", "unidad": "unit",
     "pza": "unit", "pieza": "unit", "pto": "unit", "pt": "unit", "punto": "unit",
     "bolsa": "unit", "saco": "unit", "rollo": "unit", "lote": "unit", "viaje": "unit",
     "pliego": "unit", "varilla": "unit", "par": "unit", "juego": "unit",

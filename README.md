@@ -122,7 +122,7 @@ dimension, so no quantity can ever satisfy it.
 
 `unit_category` is required and authoritative; the engine never infers it. `unit_symbol` is
 optional — when given it is folded (`M2`, `m²` and ` M. 2 ` all fold to `m2`) and cross-checked
-against a 67-token vocabulary. A symbol that contradicts its declared category, or that the
+against a 70-token vocabulary. A symbol that contradicts its declared category, or that the
 vocabulary does not know, produces a warning; neither is resolved silently.
 
 No unit library. See ADR 0002 for why `pint` was evaluated and declined.

@@ -132,9 +132,32 @@ def test_a_symbol_outside_the_vocabulary_warns_rather_than_guessing():
         assert DiagnosticCode.UNKNOWN_UNIT_SYMBOL in [d.code for d in result.diagnostics], symbol
 
 
+def test_the_spanish_abbreviations_of_a_known_token_are_all_present():
+    """A vocabulary that knows `u`, `un`, `und` and `uds` but not `ud` is inconsistent.
+
+    The same argument covers the gallon: `gl` and `gal` were carried over, `gln` and the
+    written-out `galon` were not. Each of these is the same unit under a spelling the
+    domain actually uses, so admitting one form and warning on another says nothing about
+    dimension — it only reports which spellings the map happened to inherit.
+
+    This test fails if any of the three is dropped again, which a bare count would not
+    catch: removing one and adding an unrelated token keeps the total unchanged.
+    """
+    for symbol, category in (
+        ("ud", "unit"),
+        ("gln", "capacity"),
+        ("galon", "capacity"),
+    ):
+        assert CATEGORY_BY_TOKEN.get(symbol) == category, symbol
+        result = check_dimension(dimension("count", category, unit_symbol=symbol))
+        assert result.success, result.diagnostics
+        codes = [d.code for d in result.diagnostics]
+        assert DiagnosticCode.UNKNOWN_UNIT_SYMBOL not in codes, symbol
+
+
 def test_the_vocabulary_and_taxonomy_sizes_are_pinned():
     """The README states these numbers; nothing else would stop them drifting."""
-    assert len(CATEGORY_BY_TOKEN) == 67
+    assert len(CATEGORY_BY_TOKEN) == 70
     assert len(UNIT_CATEGORIES) == 8
     assert len(QUANTITY_FIELD_UNIT_CATEGORY) == 5
     assert len(UNIT_CATEGORY_QUANTITY_FIELD) == 5
